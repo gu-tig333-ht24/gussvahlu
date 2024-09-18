@@ -10,12 +10,55 @@ void main() {
   ));
 }
 
-AppBar buildAppBar(String title) {
+AppBar buildAppBar(BuildContext context, String title) {
   return AppBar(
     backgroundColor: Colors.grey,
     title: Text(title),
     centerTitle: true,
     toolbarHeight: 40,
+    iconTheme: IconThemeData(color: Colors.black),
+    actions: [
+      IconButton(
+        icon: Icon(Icons.more_vert, color: Colors.black),
+        onPressed: () {
+          _showFilterDialog(context);
+        },
+      ),
+    ],
+  );
+}
+
+void _showFilterDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return SimpleDialog(
+        title: Text('Filter Items'),
+        children: <Widget>[
+          SimpleDialogOption(
+            onPressed: () {
+              context.read<MyState>().setFilter('All');
+              Navigator.pop(context);
+            },
+            child: Text('All'),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              context.read<MyState>().setFilter('Done');
+              Navigator.pop(context);
+            },
+            child: Text('Done'),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              context.read<MyState>().setFilter('Undone');
+              Navigator.pop(context);
+            },
+            child: Text('Undone'),
+          ),
+        ],
+      );
+    },
   );
 }
 
@@ -31,7 +74,18 @@ class MyState extends ChangeNotifier {
     ListItem('Meditate', false)
   ];
 
-  List<ListItem> get todoList => _todoList;
+  String _filter = 'All';
+
+  List<ListItem> get todoList {
+    if (_filter == 'All') {
+      return _todoList;
+    } else if (_filter == 'Done') {
+      return _todoList.where((item) => item.isDone).toList();
+    } else if (_filter == 'Undone') {
+      return _todoList.where((item) => !item.isDone).toList();
+    }
+    return _todoList;
+  }
 
   void addItem(String title) {
     _todoList.add(ListItem(title, false));
@@ -45,6 +99,11 @@ class MyState extends ChangeNotifier {
 
   void finishItem(int index) {
     _todoList[index].isDone = !_todoList[index].isDone;
+    notifyListeners();
+  }
+
+  void setFilter(String filter) {
+    _filter = filter;
     notifyListeners();
   }
 }
@@ -75,7 +134,7 @@ class MyHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     var stateList = context.watch<MyState>().todoList;
     return Scaffold(
-      appBar: buildAppBar('TIG333 TODO'),
+      appBar: buildAppBar(context, 'TIG333 TODO'),
       body: ListView.builder(
         itemCount: stateList.length,
         itemBuilder: (context, index) {
@@ -159,7 +218,7 @@ class AddItemPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar('TIG333 TODO'),
+      appBar: buildAppBar(context, 'TIG333 TODO'),
       body: Container(
           alignment: Alignment.topCenter,
           child: Column(mainAxisAlignment: MainAxisAlignment.start, children: [
