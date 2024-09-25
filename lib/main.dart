@@ -1,11 +1,9 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import './api.dart';
 
 void main() {
   MyState state = MyState();
-
   runApp(ChangeNotifierProvider(
     create: (context) => state,
     child: MyApp(),
@@ -23,14 +21,14 @@ AppBar buildAppBar(BuildContext context, String title) {
       IconButton(
         icon: Icon(Icons.more_vert, color: Colors.black),
         onPressed: () {
-          _showFilterDialog(context);
+          /* _showFilterDialog(context); */ null;
         },
       ),
     ],
   );
 }
 
-void _showFilterDialog(BuildContext context) {
+/* void _showFilterDialog(BuildContext context) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -62,59 +60,29 @@ void _showFilterDialog(BuildContext context) {
       );
     },
   );
-}
+} */
 
 class MyState extends ChangeNotifier {
-  List<ListItem> _todoList = [
-    ListItem('Write a book', false),
-    ListItem('Do homework', false),
-    ListItem('Tidy room', true),
-    ListItem('Watch TV', false),
-    ListItem('Nap', false),
-    ListItem('Shop groceries', false),
-    ListItem('Have fun', false),
-    ListItem('Meditate', false)
-  ];
+  List<ListItem> _todoList = [];
 
-  String _filter = 'All';
+  List<ListItem> get todoList => _todoList;
 
-  List<ListItem> get todoList {
-    if (_filter == 'All') {
-      return _todoList;
-    } else if (_filter == 'Done') {
-      return _todoList.where((item) => item.isDone).toList();
-    } else if (_filter == 'Undone') {
-      return _todoList.where((item) => !item.isDone).toList();
-    }
-    return _todoList;
+  MyState() {
+    fetchTodos();
   }
 
-  void addItem(String title) {
-    _todoList.add(ListItem(title, false));
+  var _key = KEY;
+  String get key => _key;
+
+  void fetchTodos() async {
+    _todoList = await TodoGetter.fetchTodos(KEY);
     notifyListeners();
   }
 
-  void removeItem(int index) {
-    _todoList.removeAt(index);
-    notifyListeners();
+  void addListItem(ListItem item) async {
+    await TodoPoster().postTodo(item, KEY);
+    fetchTodos();
   }
-
-  void finishItem(int index) {
-    _todoList[index].isDone = !_todoList[index].isDone;
-    notifyListeners();
-  }
-
-  void setFilter(String filter) {
-    _filter = filter;
-    notifyListeners();
-  }
-}
-
-class ListItem {
-  final String title;
-  bool isDone;
-
-  ListItem(this.title, this.isDone);
 }
 
 class MyApp extends StatelessWidget {
@@ -140,7 +108,7 @@ class MyHomePage extends StatelessWidget {
       body: ListView.builder(
         itemCount: stateList.length,
         itemBuilder: (context, index) {
-          return _item(index, context);
+          return items(index, context);
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -158,36 +126,38 @@ class MyHomePage extends StatelessWidget {
     );
   }
 
-  Widget _item(int index, BuildContext context) {
+  Widget items(int index, BuildContext context) {
     var stateList = context.watch<MyState>().todoList;
     return Column(children: [
       Row(mainAxisAlignment: MainAxisAlignment.start, children: [
         Padding(
-            padding: EdgeInsets.all(20),
-            child: GestureDetector(
-                onTap: () {
-                  context.read<MyState>().finishItem(index);
-                },
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.rectangle,
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black, width: 2)),
-                  child: stateList[index].isDone
-                      ? Icon(
-                          Icons.done,
-                          color: Colors.black,
-                          size: 15,
-                        )
-                      : null,
-                ))),
+          padding: EdgeInsets.all(20),
+          child: GestureDetector(
+              onTap: () {
+                /* context.read<MyState>().finishItem(index); */
+                null;
+              },
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2)),
+                child: stateList[index].done
+                    ? Icon(
+                        Icons.done,
+                        color: Colors.black,
+                        size: 15,
+                      )
+                    : null,
+              )),
+        ),
         Expanded(
           child: Text(stateList[index].title,
               style: TextStyle(
                 fontSize: 28,
-                decoration: stateList[index].isDone
+                decoration: stateList[index].done
                     ? TextDecoration.lineThrough
                     : TextDecoration.none,
                 decorationColor: Colors.black,
@@ -197,7 +167,8 @@ class MyHomePage extends StatelessWidget {
             padding: EdgeInsets.all(20),
             child: GestureDetector(
                 onTap: () {
-                  context.read<MyState>().removeItem(index);
+                  /* context.read<MyState>().deleteItem(index); */
+                  null;
                 },
                 child: Icon(Icons.close, color: Colors.black, size: 30))),
       ]),
@@ -242,9 +213,12 @@ class AddItemPage extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
                     onPressed: () {
-                      context
-                          .read<MyState>()
-                          .addItem(textEditingController.text);
+                      ///context
+                      ///    .read<MyState>()
+                      ///    .addItem(textEditingController.text);
+                      var itemtitle = textEditingController.text;
+                      ListItem item = ListItem(itemtitle, false, '');
+                      context.read<MyState>().addListItem(item);
                       Navigator.pop(context);
                     },
                     backgroundColor: Colors.white,
@@ -254,52 +228,12 @@ class AddItemPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                     icon: Icon(Icons.add, color: Colors.black, size: 30))),
+            Padding(
+                padding: EdgeInsets.only(top: 40),
+                child: Consumer<MyState>(
+                  builder: (context, state, child) => Text(KEY),
+                )),
           ])),
     );
-  }
-
-  Widget _item(String input, bool isDone) {
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-        Padding(
-            padding: EdgeInsets.all(20),
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                  shape: BoxShape.rectangle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.black, width: 2)),
-              child: isDone
-                  ? Icon(
-                      Icons.done,
-                      color: Colors.black,
-                      size: 15,
-                    )
-                  : null,
-            )),
-        Expanded(
-          child: Text(input,
-              style: TextStyle(
-                fontSize: 28,
-                decoration:
-                    isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                decorationColor: Colors.black,
-              )),
-        ),
-        Padding(
-            padding: EdgeInsets.all(20),
-            child: Icon(Icons.close, color: Colors.black, size: 30))
-      ]),
-      Container(
-          decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey,
-            width: 0.7,
-          ),
-        ),
-      ))
-    ]);
   }
 }
