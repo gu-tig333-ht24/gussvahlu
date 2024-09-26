@@ -21,14 +21,14 @@ AppBar buildAppBar(BuildContext context, String title) {
       IconButton(
         icon: Icon(Icons.more_vert, color: Colors.black),
         onPressed: () {
-          /* _showFilterDialog(context); */ null;
+          _showFilterDialog(context);
         },
       ),
     ],
   );
 }
 
-/* void _showFilterDialog(BuildContext context) {
+void _showFilterDialog(BuildContext context) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -60,16 +60,29 @@ AppBar buildAppBar(BuildContext context, String title) {
       );
     },
   );
-} */
+}
 
 class MyState extends ChangeNotifier {
-  List<ListItem> _todoList = [];
-
-  List<ListItem> get todoList => _todoList;
-
   MyState() {
     fetchTodos();
+    /* keyFetcher(); */
   }
+
+  List<ListItem> _todoList = [];
+
+  List<ListItem> get todoList {
+    if (_filter == 'All') {
+      return _todoList;
+    } else if (_filter == 'Done') {
+      return _todoList.where((item) => item.done).toList();
+    } else if (_filter == 'Undone') {
+      return _todoList.where((item) => !item.done).toList();
+    }
+    return _todoList;
+  }
+
+  var _filter = 'All';
+  String get filter => _filter;
 
   var _key = KEY;
   String get key => _key;
@@ -79,8 +92,43 @@ class MyState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setFilter(String filter) {
+    if (filter == 'Done') {
+      _filter = 'Done';
+    } else if (filter == 'Undone') {
+      _filter = 'Undone';
+    } else {
+      _filter = 'All';
+    }
+    notifyListeners();
+  }
+
   void addListItem(ListItem item) async {
     await TodoPoster().postTodo(item, KEY);
+    fetchTodos();
+  }
+
+  void keyFetcher() async {
+    _key = await KeyFetcher.fetchKey();
+    notifyListeners();
+  }
+
+  void checkboxItem(int index) async {
+    await TodoUpdate().doneTodo(_todoList[index], KEY);
+    notifyListeners();
+  }
+
+  void deleteItem(int index) async {
+    List<ListItem> filteredList;
+    if (_filter == 'Done') {
+      filteredList = _todoList.where((item) => item.done).toList();
+    } else if (_filter == 'Undone') {
+      filteredList = _todoList.where((item) => !item.done).toList();
+    } else {
+      filteredList = _todoList;
+    }
+
+    await TodoUpdate().deleteTodo(filteredList[index], KEY);
     fetchTodos();
   }
 }
@@ -134,8 +182,7 @@ class MyHomePage extends StatelessWidget {
           padding: EdgeInsets.all(20),
           child: GestureDetector(
               onTap: () {
-                /* context.read<MyState>().finishItem(index); */
-                null;
+                context.read<MyState>().checkboxItem(index);
               },
               child: Container(
                 width: 20,
@@ -167,8 +214,8 @@ class MyHomePage extends StatelessWidget {
             padding: EdgeInsets.all(20),
             child: GestureDetector(
                 onTap: () {
-                  /* context.read<MyState>().deleteItem(index); */
-                  null;
+                  context.read<MyState>().deleteItem(index);
+                  context.read<MyState>().fetchTodos();
                 },
                 child: Icon(Icons.close, color: Colors.black, size: 30))),
       ]),
@@ -213,9 +260,6 @@ class AddItemPage extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
                     onPressed: () {
-                      ///context
-                      ///    .read<MyState>()
-                      ///    .addItem(textEditingController.text);
                       var itemtitle = textEditingController.text;
                       ListItem item = ListItem(itemtitle, false, '');
                       context.read<MyState>().addListItem(item);
@@ -228,11 +272,6 @@ class AddItemPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
                     icon: Icon(Icons.add, color: Colors.black, size: 30))),
-            Padding(
-                padding: EdgeInsets.only(top: 40),
-                child: Consumer<MyState>(
-                  builder: (context, state, child) => Text(KEY),
-                )),
           ])),
     );
   }
