@@ -28,12 +28,14 @@ const String ENDPOINT = 'https://todoapp-api.apps.k8s.gu.se';
 class KeyFetcher {
   static Future<String> fetchKey() async {
     http.Response response = await http.get(Uri.parse('$ENDPOINT/register'));
-    print(response.body);
+    /* print(response.body); */ // Debugging
     return response.body;
   }
 }
 
 const String KEY = '6b2b9d69-09c4-4dd7-a9ba-02af1c923768';
+
+// Hade kunnat gömma nyckeln med en .env-fil, men anser inte riktigt att det är nödvändigt just för denna inlämningen. /lucas
 
 class TodoGetter {
   static Future<List<ListItem>> fetchTodos(String key) async {
@@ -44,7 +46,7 @@ class TodoGetter {
     String body = response.body;
 
     var jsonResponse = jsonDecode(body);
-    print(jsonResponse);
+    /* print(jsonResponse); */ // Debugging
 
     var jsonMap =
         jsonResponse.map<ListItem>((todo) => ListItem.fromJson(todo)).toList();
