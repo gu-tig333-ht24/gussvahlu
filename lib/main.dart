@@ -1,11 +1,9 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import './api.dart';
 
 void main() {
   MyState state = MyState();
-
   runApp(ChangeNotifierProvider(
     create: (context) => state,
     child: MyApp(),
@@ -65,56 +63,74 @@ void _showFilterDialog(BuildContext context) {
 }
 
 class MyState extends ChangeNotifier {
-  List<ListItem> _todoList = [
-    ListItem('Write a book', false),
-    ListItem('Do homework', false),
-    ListItem('Tidy room', true),
-    ListItem('Watch TV', false),
-    ListItem('Nap', false),
-    ListItem('Shop groceries', false),
-    ListItem('Have fun', false),
-    ListItem('Meditate', false)
-  ];
+  MyState() {
+    fetchTodos();
+    /* keyFetcher(); */
+  }
 
-  String _filter = 'All';
+  List<ListItem> _todoList = [];
 
   List<ListItem> get todoList {
     if (_filter == 'All') {
       return _todoList;
     } else if (_filter == 'Done') {
-      return _todoList.where((item) => item.isDone).toList();
+      return _todoList.where((item) => item.done).toList();
     } else if (_filter == 'Undone') {
-      return _todoList.where((item) => !item.isDone).toList();
+      return _todoList.where((item) => !item.done).toList();
     }
     return _todoList;
   }
 
-  void addItem(String title) {
-    _todoList.add(ListItem(title, false));
-    notifyListeners();
-  }
+  var _filter = 'All';
+  String get filter => _filter;
 
-  void removeItem(int index) {
-    _todoList.removeAt(index);
-    notifyListeners();
-  }
+  var _key = KEY;
+  String get key => _key;
 
-  void finishItem(int index) {
-    _todoList[index].isDone = !_todoList[index].isDone;
+  void fetchTodos() async {
+    _todoList = await TodoGetter.fetchTodos(KEY);
     notifyListeners();
   }
 
   void setFilter(String filter) {
-    _filter = filter;
+    if (filter == 'Done') {
+      _filter = 'Done';
+    } else if (filter == 'Undone') {
+      _filter = 'Undone';
+    } else {
+      _filter = 'All';
+    }
     notifyListeners();
   }
-}
 
-class ListItem {
-  final String title;
-  bool isDone;
+  void addListItem(ListItem item) async {
+    await TodoPoster().postTodo(item, KEY);
+    fetchTodos();
+  }
 
-  ListItem(this.title, this.isDone);
+  void keyFetcher() async {
+    _key = await KeyFetcher.fetchKey();
+    notifyListeners();
+  }
+
+  void checkboxItem(int index) async {
+    await TodoUpdate().doneTodo(_todoList[index], KEY);
+    notifyListeners();
+  }
+
+  void deleteItem(int index) async {
+    List<ListItem> filteredList;
+    if (_filter == 'Done') {
+      filteredList = _todoList.where((item) => item.done).toList();
+    } else if (_filter == 'Undone') {
+      filteredList = _todoList.where((item) => !item.done).toList();
+    } else {
+      filteredList = _todoList;
+    }
+
+    await TodoUpdate().deleteTodo(filteredList[index], KEY);
+    fetchTodos();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -140,7 +156,7 @@ class MyHomePage extends StatelessWidget {
       body: ListView.builder(
         itemCount: stateList.length,
         itemBuilder: (context, index) {
-          return _item(index, context);
+          return items(index, context);
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -158,36 +174,37 @@ class MyHomePage extends StatelessWidget {
     );
   }
 
-  Widget _item(int index, BuildContext context) {
+  Widget items(int index, BuildContext context) {
     var stateList = context.watch<MyState>().todoList;
     return Column(children: [
       Row(mainAxisAlignment: MainAxisAlignment.start, children: [
         Padding(
-            padding: EdgeInsets.all(20),
-            child: GestureDetector(
-                onTap: () {
-                  context.read<MyState>().finishItem(index);
-                },
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.rectangle,
-                      color: Colors.white,
-                      border: Border.all(color: Colors.black, width: 2)),
-                  child: stateList[index].isDone
-                      ? Icon(
-                          Icons.done,
-                          color: Colors.black,
-                          size: 15,
-                        )
-                      : null,
-                ))),
+          padding: EdgeInsets.all(20),
+          child: GestureDetector(
+              onTap: () {
+                context.read<MyState>().checkboxItem(index);
+              },
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2)),
+                child: stateList[index].done
+                    ? Icon(
+                        Icons.done,
+                        color: Colors.black,
+                        size: 15,
+                      )
+                    : null,
+              )),
+        ),
         Expanded(
           child: Text(stateList[index].title,
               style: TextStyle(
                 fontSize: 28,
-                decoration: stateList[index].isDone
+                decoration: stateList[index].done
                     ? TextDecoration.lineThrough
                     : TextDecoration.none,
                 decorationColor: Colors.black,
@@ -197,7 +214,8 @@ class MyHomePage extends StatelessWidget {
             padding: EdgeInsets.all(20),
             child: GestureDetector(
                 onTap: () {
-                  context.read<MyState>().removeItem(index);
+                  context.read<MyState>().deleteItem(index);
+                  context.read<MyState>().fetchTodos();
                 },
                 child: Icon(Icons.close, color: Colors.black, size: 30))),
       ]),
@@ -242,9 +260,9 @@ class AddItemPage extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
                     onPressed: () {
-                      context
-                          .read<MyState>()
-                          .addItem(textEditingController.text);
+                      var itemtitle = textEditingController.text;
+                      ListItem item = ListItem(itemtitle, false, '');
+                      context.read<MyState>().addListItem(item);
                       Navigator.pop(context);
                     },
                     backgroundColor: Colors.white,
@@ -256,50 +274,5 @@ class AddItemPage extends StatelessWidget {
                     icon: Icon(Icons.add, color: Colors.black, size: 30))),
           ])),
     );
-  }
-
-  Widget _item(String input, bool isDone) {
-    return Column(children: [
-      Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-        Padding(
-            padding: EdgeInsets.all(20),
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                  shape: BoxShape.rectangle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.black, width: 2)),
-              child: isDone
-                  ? Icon(
-                      Icons.done,
-                      color: Colors.black,
-                      size: 15,
-                    )
-                  : null,
-            )),
-        Expanded(
-          child: Text(input,
-              style: TextStyle(
-                fontSize: 28,
-                decoration:
-                    isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                decorationColor: Colors.black,
-              )),
-        ),
-        Padding(
-            padding: EdgeInsets.all(20),
-            child: Icon(Icons.close, color: Colors.black, size: 30))
-      ]),
-      Container(
-          decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey,
-            width: 0.7,
-          ),
-        ),
-      ))
-    ]);
   }
 }
